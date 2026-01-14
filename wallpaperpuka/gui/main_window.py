@@ -1,4 +1,3 @@
-
 # pylint: disable=no-name-in-module
 import os
 from PyQt5.QtWidgets import (
@@ -10,11 +9,15 @@ from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QIcon
 from wallpaperpuka.core.video_player import VideoPlayer
 from wallpaperpuka.core.wallpaper_manager import WallpaperManager
+from wallpaperpuka.core.desktop_video_player import DesktopVideoPlayer
+
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.video_player = VideoPlayer()
         self.wallpaper_manager = WallpaperManager()
+        self.desktop_player = DesktopVideoPlayer()  # Reproductor de escritorio
         self.current_file = None
         
         self.init_ui()
@@ -87,7 +90,10 @@ class MainWindow(QMainWindow):
         # Botón establecer como fondo
         btn_set_wallpaper = QPushButton("🖥️ Establecer como Fondo de Pantalla")
         btn_set_wallpaper.clicked.connect(self.set_as_wallpaper)
-        btn_set_wallpaper.setStyleSheet("padding: 15px; font-size: 14px; background-color: #4CAF50; color: white; font-weight: bold;")
+        btn_set_wallpaper.setStyleSheet(
+            "padding: 15px; font-size: 14px; background-color: #4CAF50; "
+            "color: white; font-weight: bold;"
+        )
         btn_set_wallpaper.setEnabled(False)
         self.btn_set_wallpaper = btn_set_wallpaper
         layout.addWidget(btn_set_wallpaper)
@@ -134,7 +140,11 @@ class MainWindow(QMainWindow):
             self,
             "Seleccionar Video, GIF o MLW",
             "",
-            "Todos los soportados (*.mp4 *.avi *.mov *.mkv *.gif *.mlw);;Videos (*.mp4 *.avi *.mov *.mkv);;GIFs (*.gif);;MLW Files (*.mlw);;Todos los archivos (*.*)"
+            "Todos los soportados (*.mp4 *.avi *.mov *.mkv *.gif *.mlw);;"
+            "Videos (*.mp4 *.avi *.mov *.mkv);;"
+            "GIFs (*.gif);;"
+            "MLW Files (*.mlw);;"
+            "Todos los archivos (*.*)"
         )
         
         if file_path:
@@ -149,17 +159,19 @@ class MainWindow(QMainWindow):
                 
                 if extracted_video:
                     file_path = extracted_video
-                    self.status_label.setText("✅ Archivo .mlw procesado correctamente")
+                    self.status_label.setText("✅ Archivo .mlw procesado")
                     self.status_label.setStyleSheet("color: green; padding: 10px;")
                 else:
-                    self.status_label.setText("❌ Error al procesar archivo .mlw")
+                    self.status_label.setText("❌ Error al procesar .mlw")
                     self.status_label.setStyleSheet("color: red; padding: 10px;")
                     return
             
             self.current_file = file_path
             filename = os.path.basename(file_path)
             self.file_label.setText(f"📹 {filename}")
-            self.file_label.setStyleSheet("color: black; font-weight: bold; margin: 10px;")
+            self.file_label.setStyleSheet(
+                "color: black; font-weight: bold; margin: 10px;"
+            )
             
             # Habilitar botones
             self.btn_play.setEnabled(True)
@@ -198,13 +210,29 @@ class MainWindow(QMainWindow):
     def set_as_wallpaper(self):
         """Establecer como fondo de pantalla"""
         if self.current_file:
-            success = self.wallpaper_manager.set_wallpaper(self.current_file)
-            if success:
-                self.status_label.setText("✅ Fondo de pantalla establecido")
-                self.status_label.setStyleSheet("color: green; padding: 10px;")
+            from pathlib import Path
+            ext = Path(self.current_file).suffix.lower()
+            video_extensions = ['.mp4', '.avi', '.mov', '.mkv', '.webm']
+            
+            # Si es video, usar reproductor de escritorio
+            if ext in video_extensions:
+                success = self.desktop_player.load_video(self.current_file)
+                if success:
+                    self.desktop_player.play()
+                    self.status_label.setText("✅ Video animado establecido como fondo")
+                    self.status_label.setStyleSheet("color: green; padding: 10px;")
+                else:
+                    self.status_label.setText("❌ Error al cargar video")
+                    self.status_label.setStyleSheet("color: red; padding: 10px;")
             else:
-                self.status_label.setText("❌ Error al establecer fondo")
-                self.status_label.setStyleSheet("color: red; padding: 10px;")
+                # Si es imagen, usar método tradicional
+                success = self.wallpaper_manager.set_wallpaper(self.current_file)
+                if success:
+                    self.status_label.setText("✅ Fondo de pantalla establecido")
+                    self.status_label.setStyleSheet("color: green; padding: 10px;")
+                else:
+                    self.status_label.setText("❌ Error al establecer fondo")
+                    self.status_label.setStyleSheet("color: red; padding: 10px;")
     
     def closeEvent(self, event):
         """Minimizar a tray en lugar de cerrar"""
@@ -220,5 +248,6 @@ class MainWindow(QMainWindow):
     def quit_app(self):
         """Cerrar aplicación completamente"""
         self.video_player.stop()
+        self.desktop_player.stop()  # Detener reproductor de escritorio
         self.tray_icon.hide()
         QApplication.quit()
