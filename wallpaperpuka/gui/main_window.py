@@ -1,12 +1,15 @@
-from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-                                QPushButton, QLabel, QFileDialog, QSlider, QSystemTrayIcon,
-                                QMenu, QAction)
+
+# pylint: disable=no-name-in-module
+import os
+from PyQt5.QtWidgets import (
+    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+    QPushButton, QLabel, QFileDialog, QSlider, 
+    QSystemTrayIcon, QMenu, QAction, QApplication
+)
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QIcon
 from wallpaperpuka.core.video_player import VideoPlayer
 from wallpaperpuka.core.wallpaper_manager import WallpaperManager
-import os
-
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -43,7 +46,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.file_label)
         
         # Botón seleccionar archivo
-        btn_select = QPushButton("📁 Seleccionar Video/GIF")
+        btn_select = QPushButton("📁 Seleccionar Video/GIF/MLW")
         btn_select.clicked.connect(self.select_file)
         btn_select.setStyleSheet("padding: 10px; font-size: 14px;")
         layout.addWidget(btn_select)
@@ -126,15 +129,33 @@ class MainWindow(QMainWindow):
         self.tray_icon.show()
         
     def select_file(self):
-        """Seleccionar archivo de video/GIF"""
+        """Seleccionar archivo de video/GIF/MLW"""
         file_path, _ = QFileDialog.getOpenFileName(
             self,
-            "Seleccionar Video o GIF",
+            "Seleccionar Video, GIF o MLW",
             "",
-            "Videos (*.mp4 *.avi *.mov *.mkv);;GIFs (*.gif);;Todos los archivos (*.*)"
+            "Todos los soportados (*.mp4 *.avi *.mov *.mkv *.gif *.mlw);;Videos (*.mp4 *.avi *.mov *.mkv);;GIFs (*.gif);;MLW Files (*.mlw);;Todos los archivos (*.*)"
         )
         
         if file_path:
+            # Si es archivo .mlw, extraer el video primero
+            if file_path.lower().endswith('.mlw'):
+                from wallpaperpuka.utils.mlw_handler import MLWHandler
+                self.status_label.setText("🔄 Procesando archivo .mlw...")
+                self.status_label.setStyleSheet("color: orange; padding: 10px;")
+                
+                handler = MLWHandler()
+                extracted_video = handler.extract_video(file_path)
+                
+                if extracted_video:
+                    file_path = extracted_video
+                    self.status_label.setText("✅ Archivo .mlw procesado correctamente")
+                    self.status_label.setStyleSheet("color: green; padding: 10px;")
+                else:
+                    self.status_label.setText("❌ Error al procesar archivo .mlw")
+                    self.status_label.setStyleSheet("color: red; padding: 10px;")
+                    return
+            
             self.current_file = file_path
             filename = os.path.basename(file_path)
             self.file_label.setText(f"📹 {filename}")
