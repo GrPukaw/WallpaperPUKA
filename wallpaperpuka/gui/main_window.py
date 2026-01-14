@@ -98,6 +98,15 @@ class MainWindow(QMainWindow):
         self.btn_set_wallpaper = btn_set_wallpaper
         layout.addWidget(btn_set_wallpaper)
         
+        # Botón detener fondo animado
+        btn_stop_wallpaper = QPushButton("⏹️ Detener Fondo Animado")
+        btn_stop_wallpaper.clicked.connect(self.stop_animated_wallpaper)
+        btn_stop_wallpaper.setStyleSheet(
+            "padding: 10px; font-size: 12px; background-color: #f44336; "
+            "color: white;"
+        )
+        layout.addWidget(btn_stop_wallpaper)
+        
         # Espaciador
         layout.addStretch()
         
@@ -245,6 +254,12 @@ class MainWindow(QMainWindow):
             QSystemTrayIcon.Information,
             2000
         )
+    
+    def stop_animated_wallpaper(self):
+        """Detener fondo animado"""
+        self.desktop_player.stop()
+        self.status_label.setText("⏹️ Fondo animado detenido")
+        self.status_label.setStyleSheet("color: orange; padding: 10px;")
     
     def quit_app(self):
         """Cerrar aplicación completamente"""
