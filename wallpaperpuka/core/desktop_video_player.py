@@ -25,7 +25,10 @@ class DesktopVideoPlayer(QWidget):
         # Timer para actualizar frames
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_frame)
-        self.fps = 30
+        self.fps = 24  # Reducir FPS para menor consumo
+        
+        # Cache de frames para optimización
+        self.frame_skip = 1  # Saltar frames si es necesario
         
         self.init_window()
         
@@ -116,10 +119,13 @@ class DesktopVideoPlayer(QWidget):
             print(f"Error al abrir video: {video_path}")
             return False
         
-        # Obtener FPS del video
+        # Obtener FPS del video y limitarlo
         fps = self.video_capture.get(cv2.CAP_PROP_FPS)
         if fps > 0:
-            self.fps = int(fps)
+            self.fps = min(int(fps), 30)  # Máximo 30 FPS
+        
+        # Configurar para menor calidad pero mejor rendimiento
+        self.video_capture.set(cv2.CAP_PROP_BUFFERSIZE, 1)
         
         print(f"Video cargado: {video_path} ({self.fps} FPS)")
         return True
@@ -171,9 +177,15 @@ class DesktopVideoPlayer(QWidget):
     
     def cv_to_qimage(self, cv_frame):
         """Convertir frame de OpenCV a QImage"""
-        # Redimensionar al tamaño de la pantalla
+        # Obtener tamaño de pantalla
         height, width = self.height(), self.width()
-        frame_resized = cv2.resize(cv_frame, (width, height))
+        
+        # Redimensionar con interpolación rápida
+        frame_resized = cv2.resize(
+            cv_frame, 
+            (width, height),
+            interpolation=cv2.INTER_LINEAR  # Más rápido que INTER_CUBIC
+        )
         
         # Convertir BGR a RGB
         rgb_frame = cv2.cvtColor(frame_resized, cv2.COLOR_BGR2RGB)
@@ -181,8 +193,9 @@ class DesktopVideoPlayer(QWidget):
         h, w, ch = rgb_frame.shape
         bytes_per_line = ch * w
         
+        # Copiar datos para evitar problemas de memoria
         q_image = QImage(
-            rgb_frame.data,
+            rgb_frame.copy(),
             w,
             h,
             bytes_per_line,

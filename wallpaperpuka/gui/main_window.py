@@ -238,6 +238,7 @@ class MainWindow(QMainWindow):
         """Minimizar a tray en lugar de cerrar"""
         event.ignore()
         self.hide()
+        # NO detener el reproductor de escritorio al minimizar
         self.tray_icon.showMessage(
             "WallpaperPUKA",
             "La aplicación sigue ejecutándose en segundo plano",
